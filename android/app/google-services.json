@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "32990637276",
+    "project_id": "pozosscz",
+    "storage_bucket": "pozosscz.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:32990637276:android:e64ad1b828511d5aa29819",
+        "android_client_info": {
+          "package_name": "com.pozosscz.camiones"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCiPGI7CFN9tMSIhboQj0LVMKFvc-tUxx4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

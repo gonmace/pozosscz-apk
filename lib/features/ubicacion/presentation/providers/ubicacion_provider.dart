@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../../../core/constantes/storage_constantes.dart';
+import '../../../../core/servicios/servicio_fcm.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../inicio/presentation/providers/inicio_provider.dart';
 import '../../data/servicio_ubicacion.dart';
@@ -39,6 +40,16 @@ class UbicacionNotifier extends Notifier<EstadoUbicacion> {
   EstadoUbicacion build() {
     ServicioUbicacion.inicializar();
     Future.microtask(_hidratarDesdeStorage);
+
+    // Escuchar cambios de config enviados por FCM desde el admin (toggle remoto).
+    final subConfig = streamConfigTracking.listen((activo) {
+      if (activo) {
+        activar();
+      } else {
+        desactivar();
+      }
+    });
+    ref.onDispose(subConfig.cancel);
 
     // Al cerrar sesión, marcar el camión como inactivo automáticamente.
     ref.listen(authProvider, (anterior, siguiente) {
@@ -85,11 +96,9 @@ class UbicacionNotifier extends Notifier<EstadoUbicacion> {
     await ServicioUbicacion.iniciarTracking(token: usuario.token);
     state = state.copiarCon(activo: true);
 
-    // Registrar evento de activación con nivel de tanque actual
-    await ServicioUbicacion.reportarEvento(
+    await ServicioUbicacion.reportarConfigTracking(
       token: usuario.token,
-      tipo: 'TRK_ACT',
-      nivelTanque: ref.read(nivelTanqueProvider),
+      activo: true,
     );
 
     // Enviar ubicación inmediatamente al activar para que el mapa se actualice
@@ -111,10 +120,9 @@ class UbicacionNotifier extends Notifier<EstadoUbicacion> {
     final token = ref.read(authProvider).valueOrNull?.usuario?.token;
     await enviarEstado(activo: false);
     if (token != null) {
-      await ServicioUbicacion.reportarEvento(
+      await ServicioUbicacion.reportarConfigTracking(
         token: token,
-        tipo: 'TRK_DES',
-        nivelTanque: ref.read(nivelTanqueProvider),
+        activo: false,
       );
     }
     await ServicioUbicacion.detenerTracking();

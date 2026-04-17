@@ -41,11 +41,18 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- Recibir texto compartido desde otras apps (ej: Google Maps) -->
+            <!-- Recibir texto compartido desde otras apps (ej: link de Google Maps desde WhatsApp) -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <data android:mimeType="text/plain"/>
+            </intent-filter>
+            <!-- Abrir con: recibir geo URI (ubicacion) desde WhatsApp u otras apps -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="geo"/>
             </intent-filter>
         </activity>
 

@@ -141,8 +141,8 @@ class ServicioUbicacion {
         channelId: 'pozosscz_ubicacion',
         channelName: 'Ubicacion Chofer',
         channelDescription: 'Pozos SCZ esta enviando tu ubicacion',
-        channelImportance: NotificationChannelImportance.LOW,
-        priority: NotificationPriority.LOW,
+        channelImportance: NotificationChannelImportance.NONE,
+        priority: NotificationPriority.MIN,
       ),
       iosNotificationOptions: const IOSNotificationOptions(
         showNotification: true,
@@ -196,8 +196,8 @@ class ServicioUbicacion {
         channelId: 'pozosscz_ubicacion',
         channelName: 'Ubicacion Chofer',
         channelDescription: 'Pozos SCZ esta enviando tu ubicacion',
-        channelImportance: NotificationChannelImportance.LOW,
-        priority: NotificationPriority.LOW,
+        channelImportance: NotificationChannelImportance.NONE,
+        priority: NotificationPriority.MIN,
       ),
       iosNotificationOptions: const IOSNotificationOptions(
         showNotification: true,
@@ -299,6 +299,24 @@ class ServicioUbicacion {
     }
   }
 
+  /// Informa al backend que el chofer activó o desactivó el tracking.
+  static Future<void> reportarConfigTracking({
+    required String token,
+    required bool activo,
+  }) async {
+    try {
+      final dio = Dio();
+      await dio.post(
+        '${ApiConstantes.urlBase}${ApiConstantes.urlConfigTracking}',
+        data: {'tracking_activo': activo},
+        options: Options(headers: {'Authorization': 'Token $token'}),
+      );
+      debugPrint('[reportarConfigTracking] activo=$activo');
+    } catch (e) {
+      debugPrint('[reportarConfigTracking] Error: $e');
+    }
+  }
+
   /// Aplica una configuración recibida por FCM sin hacer llamada al servidor.
   static Future<void> aplicarConfigDirecta({
     required bool activo,
@@ -330,8 +348,8 @@ class ServicioUbicacion {
         channelId: 'pozosscz_ubicacion',
         channelName: 'Ubicacion Chofer',
         channelDescription: 'Pozos SCZ esta enviando tu ubicacion',
-        channelImportance: NotificationChannelImportance.LOW,
-        priority: NotificationPriority.LOW,
+        channelImportance: NotificationChannelImportance.NONE,
+        priority: NotificationPriority.MIN,
       ),
       iosNotificationOptions: const IOSNotificationOptions(
         showNotification: true,

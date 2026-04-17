@@ -11,6 +11,8 @@ import 'package:webview_flutter_android/webview_flutter_android.dart'
         AndroidWebViewWidget,
         AndroidWebViewWidgetCreationParams;
 
+import 'package:url_launcher/url_launcher.dart';
+
 import '../../../../core/constantes/api_constantes.dart';
 import '../../../../features/auth/data/repositorio_auth.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -51,6 +53,17 @@ class _PantallaAdminState extends ConsumerState<PantallaAdmin> {
         NavigationDelegate(
           onPageStarted: (_) => setState(() => _cargando = true),
           onPageFinished: _alTerminarCarga,
+          onNavigationRequest: (NavigationRequest request) {
+            final url = request.url;
+            if (url.startsWith('https://wa.me/') ||
+                url.startsWith('whatsapp://') ||
+                url.startsWith('tel:') ||
+                url.startsWith('mailto:')) {
+              launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+              return NavigationDecision.prevent;
+            }
+            return NavigationDecision.navigate;
+          },
         ),
       );
 
@@ -95,26 +108,78 @@ class _PantallaAdminState extends ConsumerState<PantallaAdmin> {
 
   void _escucharCompartidos() {
     _shareSubscription =
-        _shareEvents.receiveBroadcastStream().listen((event) {
-      if (event is String && event.isNotEmpty) {
-        // Volver al modo admin si se estaba en vista chofer
+        _shareEvents.receiveBroadcastStream().listen((event) async {
+      if (event is String && event.isNotEmpty && _esAdmin()) {
         if (_choferSeleccionado != null) {
           setState(() => _choferSeleccionado = null);
         }
-        _navegarConShare(event);
+        // Si ya estamos en el mapa, inyectar directamente sin recargar la página
+        final urlActual = await _controlador.currentUrl() ?? '';
+        if (urlActual.contains('/mapa')) {
+          await _inyectarCoordenadas(event);
+        } else {
+          // Navegar al mapa; la inyección ocurrirá en _alTerminarCarga
+          _textoCompartido = event;
+          _controlador.loadRequest(
+            Uri.parse('${ApiConstantes.urlBase}/mapa/'),
+          );
+        }
       }
     });
   }
 
-  void _navegarConShare(String texto) {
-    final shareUrl = Uri.encodeComponent(texto);
-    _controlador.loadRequest(
-      Uri.parse('${ApiConstantes.urlBase}/mapa/?share_url=$shareUrl'),
-    );
+  /// Solo procesa intents de ubicación si el usuario es administrador.
+  bool _esAdmin() {
+    final usuario = ref.read(authProvider).valueOrNull?.usuario;
+    return usuario?.esAdministrador ?? false;
+  }
+
+  /// Inyecta las coordenadas directamente en el campo #URLwhatsapp via JavaScript,
+  /// igual que el auto-login. No recarga la página.
+  Future<void> _inyectarCoordenadas(String texto) async {
+    final coords = _extraerCoordenadas(texto);
+    final String valor =
+        coords != null ? '${coords.$1},${coords.$2}' : texto;
+    final valorEscapado = _escaparParaJs(valor);
+    await _controlador.runJavaScript('''
+      (function() {
+        var input = document.getElementById('URLwhatsapp');
+        var btn   = document.getElementById('putMarker');
+        if (!input || !btn) return;
+        input.value = '$valorEscapado';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(function() { if (!btn.disabled) btn.click(); }, 350);
+      })();
+    ''');
+  }
+
+  /// Intenta extraer (lat, lon) de un texto.
+  /// Soporta: "lat,lon", "lat, lon", "geo:lat,lon", URLs de Google Maps con ?q=lat,lon
+  (double, double)? _extraerCoordenadas(String texto) {
+    // Formato geo:lat,lon (viene de MainActivity al manejar ACTION_VIEW)
+    final sinGeo = texto.startsWith('geo:') ? texto.substring(4) : texto;
+
+    // Buscar patrón numérico: número, coma, número (con signo y decimales)
+    final regex = RegExp(r'(-?\d{1,3}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)');
+    final match = regex.firstMatch(sinGeo);
+    if (match != null) {
+      final lat = double.tryParse(match.group(1)!);
+      final lon = double.tryParse(match.group(2)!);
+      if (lat != null && lon != null &&
+          lat >= -90 && lat <= 90 &&
+          lon >= -180 && lon <= 180) {
+        return (lat, lon);
+      }
+    }
+    return null;
   }
 
   Future<void> _alTerminarCarga(String url) async {
-    setState(() => _cargando = false);
+    // Solo mostrar el mapa cuando ya cargó la página correcta, no el login de Django
+    if (url.contains('/mapa')) {
+      setState(() => _cargando = false);
+    }
 
     // Si Django redirigió al login, rellenar y enviar el formulario
     if (url.contains('/login') && _usuario != null && _contrasena != null) {
@@ -135,12 +200,11 @@ class _PantallaAdminState extends ConsumerState<PantallaAdmin> {
       return;
     }
 
-    // Si llegamos al mapa y hay un share pendiente, navegar con share_url
-    final enMapa = url.contains('/mapa') && !url.contains('share_url');
-    if (enMapa && _textoCompartido != null) {
+    // Si llegamos al mapa y hay coordenadas pendientes, inyectarlas via JS
+    if (url.contains('/mapa') && _textoCompartido != null && _esAdmin()) {
       final texto = _textoCompartido!;
       _textoCompartido = null;
-      _navegarConShare(texto);
+      await _inyectarCoordenadas(texto);
     }
   }
 
@@ -264,8 +328,12 @@ class _PantallaAdminState extends ConsumerState<PantallaAdmin> {
         children: [
           // WebView siempre en el árbol para mantener el estado de la página
           _buildWebView(),
+          // Pantalla opaca mientras Django hace login — oculta el formulario al usuario
           if (_cargando && _choferSeleccionado == null)
-            const Center(child: CircularProgressIndicator()),
+            Container(
+              color: Theme.of(context).scaffoldBackgroundColor,
+              child: const Center(child: CircularProgressIndicator()),
+            ),
           // Vista del chofer encima del WebView cuando se selecciona uno
           if (_choferSeleccionado != null)
             VistaChofer(

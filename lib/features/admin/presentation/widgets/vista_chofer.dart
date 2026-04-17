@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/tema/tema_app.dart';
@@ -6,14 +7,30 @@ import '../../../inicio/presentation/providers/inicio_provider.dart';
 import '../../../inicio/presentation/widgets/tarjeta_proyecto.dart';
 import '../providers/admin_providers.dart';
 
-class VistaChofer extends ConsumerWidget {
+class VistaChofer extends ConsumerStatefulWidget {
   final ModeloCamion camion;
 
   const VistaChofer({super.key, required this.camion});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final proyectosAsync = ref.watch(proyectosChoferProvider(camion.id));
+  ConsumerState<VistaChofer> createState() => _VistaChoferState();
+}
+
+class _VistaChoferState extends ConsumerState<VistaChofer> {
+  // id → índice anterior en la lista
+  Map<int, int> _posicionesAnteriores = {};
+
+  String _iniciales(String nombre) {
+    final partes = nombre.trim().split(RegExp(r'\s+'));
+    if (partes.length >= 2) {
+      return '${partes[0][0]}${partes[1][0]}'.toUpperCase();
+    }
+    return nombre.isNotEmpty ? nombre[0].toUpperCase() : '?';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final proyectosAsync = ref.watch(proyectosChoferProvider(widget.camion.id));
     final estadosLocales = ref.watch(estadosLocalesProvider);
 
     return Container(
@@ -31,7 +48,7 @@ class VistaChofer extends ConsumerWidget {
                   radius: 24,
                   backgroundColor: TemaApp.colorPrimario.withValues(alpha: 0.18),
                   child: Text(
-                    _iniciales(camion.operador),
+                    _iniciales(widget.camion.operador),
                     style: const TextStyle(
                       color: TemaApp.colorPrimario,
                       fontWeight: FontWeight.w800,
@@ -45,7 +62,7 @@ class VistaChofer extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        camion.operador,
+                        widget.camion.operador,
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w700,
@@ -54,7 +71,7 @@ class VistaChofer extends ConsumerWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        camion.marca,
+                        widget.camion.marca,
                         style: const TextStyle(
                           color: Colors.white54,
                           fontSize: 12,
@@ -63,10 +80,9 @@ class VistaChofer extends ConsumerWidget {
                     ],
                   ),
                 ),
-                // Botón refrescar
                 IconButton(
                   icon: const Icon(Icons.refresh, color: Colors.white54, size: 20),
-                  onPressed: () => ref.invalidate(proyectosChoferProvider(camion.id)),
+                  onPressed: () => ref.invalidate(proyectosChoferProvider(widget.camion.id)),
                   tooltip: 'Refrescar',
                 ),
               ],
@@ -124,7 +140,8 @@ class VistaChofer extends ConsumerWidget {
                       ),
                     ],
                   );
-                }).value ?? const SizedBox(),
+                }).value ??
+                    const SizedBox(),
               ],
             ),
           ),
@@ -133,7 +150,28 @@ class VistaChofer extends ConsumerWidget {
           Expanded(
             child: proyectosAsync.when(
               data: (proyectos) {
-                final visibles = proyectos.where((p) => p.activo).toList();
+                const ordenStatus = {'PRG': 0, 'EJE': 1, 'CAN': 2};
+                final visibles = proyectos
+                    .where((p) => p.activo)
+                    .map((p) {
+                      final local = estadosLocales[p.id];
+                      return local != null ? p.copyWith(status: local) : p;
+                    })
+                    .toList()
+                  ..sort((a, b) {
+                    final oa = ordenStatus[a.status] ?? 9;
+                    final ob = ordenStatus[b.status] ?? 9;
+                    return oa.compareTo(ob);
+                  });
+
+                // Guardar posiciones nuevas para el próximo build
+                final nuevasPosiciones = {
+                  for (var i = 0; i < visibles.length; i++) visibles[i].id: i,
+                };
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) setState(() => _posicionesAnteriores = nuevasPosiciones);
+                });
+
                 if (visibles.isEmpty) {
                   return const Center(
                     child: Text(
@@ -145,12 +183,31 @@ class VistaChofer extends ConsumerWidget {
                 return RefreshIndicator(
                   color: TemaApp.colorPrimario,
                   onRefresh: () =>
-                      ref.refresh(proyectosChoferProvider(camion.id).future),
+                      ref.refresh(proyectosChoferProvider(widget.camion.id).future),
                   child: ListView.builder(
                     padding: const EdgeInsets.only(bottom: 16),
                     itemCount: visibles.length,
-                    itemBuilder: (context, index) =>
-                        TarjetaProyecto(proyecto: visibles[index]),
+                    itemBuilder: (context, index) {
+                      final proyecto = visibles[index];
+                      final prevIndex = _posicionesAnteriores[proyecto.id];
+                      final bajando = prevIndex != null && index > prevIndex;
+                      final duracion = bajando ? 520.ms : 280.ms;
+                      final curva = bajando ? Curves.easeInOut : Curves.easeOut;
+                      final desplazamiento = bajando ? -0.12 : 0.08;
+
+                      return TarjetaProyecto(
+                        key: ValueKey(proyecto.id),
+                        proyecto: proyecto,
+                      )
+                          .animate(key: ValueKey('${proyecto.id}-${proyecto.status}'))
+                          .fadeIn(duration: duracion, curve: curva)
+                          .slideY(
+                            begin: desplazamiento,
+                            end: 0,
+                            duration: duracion,
+                            curve: curva,
+                          );
+                    },
                   ),
                 );
               },
@@ -171,7 +228,7 @@ class VistaChofer extends ConsumerWidget {
                     const SizedBox(height: 12),
                     ElevatedButton(
                       onPressed: () =>
-                          ref.invalidate(proyectosChoferProvider(camion.id)),
+                          ref.invalidate(proyectosChoferProvider(widget.camion.id)),
                       child: const Text('Reintentar'),
                     ),
                   ],
@@ -182,14 +239,6 @@ class VistaChofer extends ConsumerWidget {
         ],
       ),
     );
-  }
-
-  String _iniciales(String nombre) {
-    final partes = nombre.trim().split(RegExp(r'\s+'));
-    if (partes.length >= 2) {
-      return '${partes[0][0]}${partes[1][0]}'.toUpperCase();
-    }
-    return nombre.isNotEmpty ? nombre[0].toUpperCase() : '?';
   }
 }
 

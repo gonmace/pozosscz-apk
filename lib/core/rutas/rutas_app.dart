@@ -32,17 +32,25 @@ final rutasAppProvider = Provider<GoRouter>((ref) {
 
       final usuario = authState.valueOrNull?.usuario;
       final autenticado = usuario != null;
-      final enLogin = state.matchedLocation == '/login';
+      final ubicacion = state.matchedLocation;
+      final enLogin = ubicacion == '/login';
 
       // Sin sesion: ir al login
       if (!autenticado && !enLogin) return '/login';
 
-      // Con sesion en login: ir a la pantalla del rol correspondiente
-      if (autenticado && enLogin) {
-        return usuario.rol == RolUsuario.administrador ? '/admin' : '/';
+      if (autenticado) {
+        final esAdmin = usuario.rol == RolUsuario.administrador;
+
+        // Desde login: ir a la pantalla del rol
+        if (enLogin) return esAdmin ? '/admin' : '/';
+
+        // Guardia de rol: operador en pantalla admin → a su pantalla
+        if (!esAdmin && ubicacion == '/admin') return '/';
+
+        // Guardia de rol: admin en pantalla operador → a su pantalla
+        if (esAdmin && ubicacion == '/') return '/admin';
       }
 
-      // Ya en la pantalla correcta → sin redireccion
       return null;
     },
     routes: [

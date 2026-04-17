@@ -54,7 +54,18 @@
       "Bash(node -e ' *)",
       "Bash(/c/Users/gonma/flutter_sdk/bin/dart run *)",
       "Read(//c/Program Files/Android/Android Studio/jbr/bin/**)",
-      "Read(//c/Users/gonma/**)"
+      "Read(//c/Users/gonma/**)",
+      "Bash(python -c \"import cairosvg\")",
+      "Bash(python -c \"from PIL import Image; print\\('pillow ok'\\)\")",
+      "Bash(pip install *)",
+      "Bash(python *)",
+      "Bash(magick --version)",
+      "Read(//c/tmp/**)",
+      "Bash(npm install *)",
+      "Bash(node -e \"const sharp = require\\('sharp'\\); sharp\\('<svg xmlns=\\\\\"http://www.w3.org/2000/svg\\\\\" width=\\\\\"10\\\\\" height=\\\\\"10\\\\\"><rect width=\\\\\"10\\\\\" height=\\\\\"10\\\\\" fill=\\\\\"red\\\\\"/></svg>'\\).png\\(\\).toBuffer\\(\\).then\\(b => console.log\\('sharp SVG ok, size:', b.length\\)\\).catch\\(e => console.error\\(e.message\\)\\)\")",
+      "Bash(node *)",
+      "Read(///wsl.localhost/Ubuntu/home/gonzalo/Django/pozosscz/flota/**)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); c=d['project_info']; print\\('projectId:', c.get\\('project_id'\\)\\); print\\('apiKey:', d['client'][0]['api_key'][0]['current_key'][:20]+'...'\\); print\\('databaseURL:', c.get\\('firebase_url','no-existe'\\)\\); print\\('appId:', d['client'][0]['client_info']['mobilesdk_app_id']\\)\")"
     ]
   }
 }

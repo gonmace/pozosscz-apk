@@ -112,7 +112,7 @@ final proyectosProvider = FutureProvider<List<ModeloProyecto>>((ref) async {
   final sub = streamActualizarProyectos.listen((_) => ref.invalidateSelf());
   ref.onDispose(sub.cancel);
 
-  final token = ref.read(authProvider).valueOrNull?.usuario?.token;
+  final token = ref.watch(authProvider).valueOrNull?.usuario?.token;
   if (token == null) return [];
 
   final dio = ref.read(dioProvider);

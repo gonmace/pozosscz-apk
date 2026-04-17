@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:geolocator/geolocator.dart';
@@ -19,6 +20,9 @@ class PantallaInicio extends ConsumerStatefulWidget {
 
 class _PantallaInicioState extends ConsumerState<PantallaInicio>
     with WidgetsBindingObserver {
+  // id → índice anterior en la lista
+  Map<int, int> _posicionesAnteriores = {};
+
   @override
   void initState() {
     super.initState();
@@ -516,7 +520,27 @@ class _PantallaInicioState extends ConsumerState<PantallaInicio>
           Expanded(
             child: proyectosAsync.when(
               data: (proyectos) {
-                final visibles = proyectos.where((p) => p.activo).toList();
+                const ordenStatus = {'PRG': 0, 'EJE': 1, 'CAN': 2};
+                final visibles = proyectos
+                    .where((p) => p.activo)
+                    .map((p) {
+                      final local = estadosLocales[p.id];
+                      return local != null ? p.copyWith(status: local) : p;
+                    })
+                    .toList()
+                  ..sort((a, b) {
+                    final oa = ordenStatus[a.status] ?? 9;
+                    final ob = ordenStatus[b.status] ?? 9;
+                    return oa.compareTo(ob);
+                  });
+                // Guardar posiciones nuevas para el próximo build
+                final nuevasPosiciones = {
+                  for (var i = 0; i < visibles.length; i++) visibles[i].id: i,
+                };
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) setState(() => _posicionesAnteriores = nuevasPosiciones);
+                });
+
                 if (visibles.isEmpty) {
                   return const Center(
                     child: Text(
@@ -533,10 +557,28 @@ class _PantallaInicioState extends ConsumerState<PantallaInicio>
                   child: ListView.builder(
                     padding: const EdgeInsets.only(bottom: 16),
                     itemCount: ordenados.length,
-                    itemBuilder: (context, index) => TarjetaProyecto(
-                      proyecto: ordenados[index],
-                      servicioActivo: estadoUbicacion.activo,
-                    ),
+                    itemBuilder: (context, index) {
+                      final proyecto = ordenados[index];
+                      final prevIndex = _posicionesAnteriores[proyecto.id];
+                      final bajando = prevIndex != null && index > prevIndex;
+                      final duracion = bajando ? 520.ms : 280.ms;
+                      final curva = bajando ? Curves.easeInOut : Curves.easeOut;
+                      final desplazamiento = bajando ? -0.12 : 0.08;
+
+                      return TarjetaProyecto(
+                        key: ValueKey(proyecto.id),
+                        proyecto: proyecto,
+                        servicioActivo: estadoUbicacion.activo,
+                      )
+                          .animate(key: ValueKey('${proyecto.id}-${proyecto.status}'))
+                          .fadeIn(duration: duracion, curve: curva)
+                          .slideY(
+                            begin: desplazamiento,
+                            end: 0,
+                            duration: duracion,
+                            curve: curva,
+                          );
+                    },
                   ),
                 );
               },

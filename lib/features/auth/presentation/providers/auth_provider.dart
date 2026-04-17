@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/servicios/servicio_fcm.dart';
+import '../../../inicio/presentation/providers/inicio_provider.dart';
 import '../../data/modelo_usuario.dart';
 import '../../data/repositorio_auth.dart';
 
@@ -76,6 +77,9 @@ class AuthNotifier extends AsyncNotifier<EstadoAuth> {
   Future<void> cerrarSesion() async {
     final repositorio = ref.read(repositorioAuthProvider);
     await repositorio.cerrarSesion();
+    // Limpiar datos en caché del usuario anterior
+    ref.invalidate(proyectosProvider);
+    ref.invalidate(estadosLocalesProvider);
     state = const AsyncData(EstadoAuth());
   }
 

@@ -34,6 +34,11 @@ final _notificacionesLocales = FlutterLocalNotificationsPlugin();
 final _streamProyectos = StreamController<void>.broadcast();
 Stream<void> get streamActualizarProyectos => _streamProyectos.stream;
 
+// Stream para notificar a UbicacionNotifier el nuevo estado de tracking (activo/inactivo)
+// recibido por FCM desde el backend (toggle del admin).
+final _streamConfigTracking = StreamController<bool>.broadcast();
+Stream<bool> get streamConfigTracking => _streamConfigTracking.stream;
+
 const _storage = FlutterSecureStorage();
 
 // Handler de mensajes FCM en background — corre en isolate separado.
@@ -62,6 +67,10 @@ Future<void> _aplicarConfig(Map<String, dynamic> data) async {
     intervaloSeg: intervalo,
     token: token,
   );
+  // Notificar al provider para que el toggle de la UI refleje el cambio
+  if (!_streamConfigTracking.isClosed) {
+    _streamConfigTracking.add(activo);
+  }
 }
 
 // Deduplicación cross-isolate usando FlutterSecureStorage (almacenamiento nativo compartido).

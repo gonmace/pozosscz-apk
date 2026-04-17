@@ -268,27 +268,32 @@ class TarjetaProyecto extends ConsumerWidget {
             // Acciones
             if (!bloqueado && servicioActivo)
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                _BotonAccion(
-                  icono: Icons.check_circle_outline,
-                  etiqueta: 'Terminado',
-                  color: const Color(0xFF42A5F5),
-                  onTap: () => _mostrarDialogTerminar(context, ref),
+                Expanded(
+                  child: _BotonAccion(
+                    icono: Icons.check_circle_outline,
+                    etiqueta: 'Terminado',
+                    color: const Color(0xFF42A5F5),
+                    onTap: () => _mostrarDialogTerminar(context, ref),
+                  ),
                 ),
                 const SizedBox(width: 8),
-                _BotonAccion(
-                  icono: Icons.location_on,
-                  etiqueta: 'Mapa',
-                  color: const Color(0xFFBF5300),
-                  onTap: _abrirMaps,
+                Expanded(
+                  child: _BotonAccion(
+                    icono: Icons.location_on,
+                    etiqueta: 'Mapa',
+                    color: const Color(0xFFBF5300),
+                    onTap: _abrirMaps,
+                  ),
                 ),
                 const SizedBox(width: 8),
-                _BotonAccion(
-                  icono: Icons.chat_rounded,
-                  etiqueta: 'WhatsApp',
-                  color: const Color(0xFF1A9E4A),
-                  onTap: _abrirWhatsApp,
+                Expanded(
+                  child: _BotonAccion(
+                    icono: Icons.chat_rounded,
+                    etiqueta: 'WhatsApp',
+                    color: const Color(0xFF1A9E4A),
+                    onTap: _abrirWhatsApp,
+                  ),
                 ),
               ],
             ),
@@ -1161,7 +1166,7 @@ class _BotonAccion extends StatelessWidget {
           border: Border.all(color: color.withValues(alpha: 0.4)),
         ),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icono, size: 15, color: color),
             const SizedBox(width: 5),

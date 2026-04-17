@@ -12,6 +12,15 @@ class MainActivity : FlutterActivity() {
     private var textoCompartidoInicial: String? = null
     private var eventSink: EventChannel.EventSink? = null
 
+    // Evita que Flutter reciba el URI geo: como ruta inicial (crashea go_router)
+    override fun getInitialRoute(): String? {
+        val i = intent
+        if (i?.action == Intent.ACTION_VIEW && i.data?.scheme == "geo") {
+            return "/"
+        }
+        return super.getInitialRoute()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         textoCompartidoInicial = extraerTextoCompartido(intent)
@@ -20,7 +29,6 @@ class MainActivity : FlutterActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         val texto = extraerTextoCompartido(intent) ?: return
-        // App ya en ejecucion: enviar via EventChannel
         eventSink?.success(texto)
     }
 
@@ -52,8 +60,16 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun extraerTextoCompartido(intent: Intent?): String? {
+        // Texto compartido via ACTION_SEND (ej: link copiado desde WhatsApp)
         if (intent?.action == Intent.ACTION_SEND && intent.type == "text/plain") {
             return intent.getStringExtra(Intent.EXTRA_TEXT)
+        }
+        // URI de ubicacion via ACTION_VIEW + geo: (ej: "Abrir con" desde WhatsApp)
+        if (intent?.action == Intent.ACTION_VIEW) {
+            val data = intent.data
+            if (data?.scheme == "geo") {
+                return data.toString()  // "geo:-17.783,63.182?q=-17.783,63.182"
+            }
         }
         return null
     }
